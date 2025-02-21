@@ -111,7 +111,7 @@ impl ISOHeader {
     }
 }
 
-#[repr(packed(1))]
+#[repr(C, packed(1))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ISODateTime {
     pub year: u8,
@@ -123,7 +123,7 @@ pub struct ISODateTime {
     pub gmt_offset: u8,
 }
 
-#[repr(packed(1))]
+#[repr(C, packed(1))]
 #[derive(Debug, Default)]
 pub struct ISODirectoryRecord {
     pub(crate) length: u8,
@@ -169,9 +169,8 @@ impl ISO9660 {
         let mut result = Vec::<ISODirectory>::new();
 
         let mut byte_offset = start_lba * DISK_SECTOR_SIZE;
-        let mut end = false;
 
-        while !end {
+        loop {
             let mut record = ISODirectoryRecord::default();
             let ptr = unsafe {
                 core::slice::from_raw_parts_mut(
@@ -184,12 +183,14 @@ impl ISO9660 {
                 .read(byte_offset as _, size_of::<ISODirectoryRecord>(), ptr);
 
             if record.length == 0 {
-                end = true;
                 break;
             }
 
+            // The whole buffer will be overwritten, so we don't have to initialize `result` Vec.
+            #[allow(clippy::uninit_vec)]
             let mut name = {
                 let size = record.file_identifier_length as usize;
+
                 let mut result = Vec::with_capacity(size);
                 unsafe { result.set_len(size); }
 
