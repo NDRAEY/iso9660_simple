@@ -38,6 +38,7 @@ fn main() {
     // let iso = ISO::from_raw_header(buffer);
 
     let data = buffer.read_root();
+    // let data = buffer.read_directory(21);
 
     // println!("{:#?}", iso);
     let hdr = buffer.header();

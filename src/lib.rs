@@ -188,7 +188,7 @@ impl ISO9660 {
                 break;
             }
 
-            let name = {
+            let mut name = {
                 let size = record.file_identifier_length as usize;
                 let mut result = Vec::with_capacity(size);
                 unsafe { result.set_len(size); }
@@ -201,6 +201,14 @@ impl ISO9660 {
 
                 String::from_utf8_lossy(result.as_slice()).to_string()
             };
+
+            if name == "\0" {
+                name = ".".to_string();
+            }
+
+            if name == "\u{1}" {
+                name = "..".to_string();
+            }
 
             byte_offset += record.length as usize;
 
