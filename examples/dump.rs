@@ -1,6 +1,23 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::{fs::File, io::{Read, Seek, SeekFrom}};
+use iso9660_simple::{Read as ISORead, *};
 
-use iso9660_simple::*;
+struct FileDevice(File);
+
+impl ISORead for FileDevice {
+    fn read(&mut self, position: usize, size: usize, buffer: &mut [u8]) -> Option<()> {
+        println!("Seek and read: 0x{:x}", position);
+
+        if self.0.seek(SeekFrom::Start(position as u64)).is_err() {
+            return None;
+        }
+
+        if self.0.read_exact(&mut buffer[..size]).is_ok() {
+            Some(())
+        } else {
+            None
+        }
+    }
+}
 
 fn main() {
     // Get last argument in command line
@@ -14,14 +31,17 @@ fn main() {
 
     let filename = args.nth(args.len() - 1).unwrap();
 
-    let mut file = std::fs::File::open(filename).unwrap();
-    let mut buffer = ISOHeaderRaw::zeroed();
 
-    file.seek(SeekFrom::Start(0x8000)).unwrap();
-    file.read(buffer.as_mut_slice()).unwrap();
+    let file = File::open(filename).unwrap();
+    let mut buffer = ISO9660::from_device(FileDevice(file));
 
     // let iso = ISO::from_raw_header(buffer);
 
+    let data = buffer.read_root();
+
     // println!("{:#?}", iso);
-    println!("{:?}", buffer);
+    let hdr = buffer.header();
+    // println!("{:?}", hdr);
+    // println!("{}", "=".to_string().repeat(25));
+    println!("{:#?}", data);
 }
