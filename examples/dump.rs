@@ -1,5 +1,8 @@
-use std::{fs::File, io::{Read, Seek, SeekFrom}};
-use iso9660_simple::{Read as ISORead, *};
+use iso9660_simple::{helpers, Read as ISORead, *};
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom, Write},
+};
 
 struct FileDevice(File);
 
@@ -31,17 +34,15 @@ fn main() {
 
     let filename = args.nth(args.len() - 1).unwrap();
 
-
     let file = File::open(filename).unwrap();
     let mut buffer = ISO9660::from_device(FileDevice(file));
 
     // let iso = ISO::from_raw_header(buffer);
 
     let data = buffer.read_root();
-    // let data = buffer.read_directory(21);
 
     // println!("{:#?}", iso);
-    let hdr = buffer.header();
+    // let hdr = buffer.header();
     // println!("{:?}", hdr);
     // println!("{}", "=".to_string().repeat(25));
     println!("{:#?}", data);

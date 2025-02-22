@@ -1,8 +1,16 @@
-#![no_std]
+// #![no_std]
+
+#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
+pub mod helpers;
 
 const DISK_SECTOR_SIZE: usize = 2048;
+
+const FLAG_HIDDEN: u8 = 1 << 0;
+const FLAG_DIRECTORY: u8 = 1 << 1;
+const FLAG_ASSOCIATED: u8 = 1 << 2;
+const FLAG_EXTENDED_ATTR: u8 = 1 << 3;
 
 #[derive(Debug)]
 #[repr(C, packed)]
@@ -64,7 +72,11 @@ extern crate alloc;
 
 use core::mem::{size_of, transmute_copy};
 
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 #[derive(Debug)]
 pub struct ISOHeader {
@@ -124,7 +136,7 @@ pub struct ISODateTime {
 }
 
 #[repr(C, packed(1))]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ISODirectoryRecord {
     pub(crate) length: u8,
     pub(crate) xar_length: u8,
@@ -138,10 +150,20 @@ pub struct ISODirectoryRecord {
     pub(crate) file_identifier_length: u8, // Here comes the name which size is dynamic
 }
 
-#[derive(Debug, Default)]
-pub struct ISODirectory {
+#[derive(Debug, Default, Clone)]
+pub struct ISODirectoryEntry {
     pub(crate) record: ISODirectoryRecord,
     pub name: String,
+}
+
+impl ISODirectoryEntry {
+    pub fn is_folder(&self) -> bool {
+        (self.record.flags & FLAG_DIRECTORY) != 0
+    }
+
+    pub fn is_file(&self) -> bool {
+        !self.is_folder()
+    }
 }
 
 pub mod io;
@@ -149,6 +171,7 @@ pub use io::{Read, Write};
 
 pub struct ISO9660 {
     data: ISOHeader,
+    root_directory: ISODirectoryRecord,
     device: Box<dyn Read>,
 }
 
@@ -159,14 +182,18 @@ impl ISO9660 {
 
         device.read(0x8000, read_size, raw_header.as_mut_slice());
 
+        let root_dir_ptr: ISODirectoryRecord =
+            unsafe { transmute_copy(&raw_header.directory_entry) };
+
         ISO9660 {
             data: ISOHeader::from_raw_header(raw_header),
+            root_directory: root_dir_ptr,
             device: Box::new(device),
         }
     }
 
-    pub fn read_directory(&mut self, start_lba: usize) -> Vec<ISODirectory> {
-        let mut result = Vec::<ISODirectory>::new();
+    pub fn read_directory(&mut self, start_lba: usize) -> Vec<ISODirectoryEntry> {
+        let mut result = Vec::<ISODirectoryEntry>::new();
 
         let mut byte_offset = start_lba * DISK_SECTOR_SIZE;
 
@@ -192,12 +219,14 @@ impl ISO9660 {
                 let size = record.file_identifier_length as usize;
 
                 let mut result = Vec::with_capacity(size);
-                unsafe { result.set_len(size); }
+                unsafe {
+                    result.set_len(size);
+                }
 
                 self.device.read(
                     byte_offset + size_of::<ISODirectoryRecord>(),
                     size,
-                    result.as_mut_slice()
+                    result.as_mut_slice(),
                 );
 
                 String::from_utf8_lossy(result.as_slice()).to_string()
@@ -213,20 +242,34 @@ impl ISO9660 {
 
             byte_offset += record.length as usize;
 
-            result.push(ISODirectory {
-                record,
-                name,
-            });
+            result.push(ISODirectoryEntry { record, name });
         }
 
         result
     }
 
-    pub fn read_root(&mut self) -> Vec<ISODirectory> {
-        let root_dir_ptr: ISODirectoryRecord =
-            unsafe { transmute_copy(&self.data.header.directory_entry) };
+    pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry) -> Option<Vec<u8>> {
+        if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
+            return None;
+        }
 
-        self.read_directory(root_dir_ptr.lba.lsb as usize)
+        let position = directory_entry.record.lba.lsb;
+        let data_length = directory_entry.record.data_length.lsb;
+
+        let mut data = Vec::<u8>::with_capacity(data_length.try_into().unwrap());
+        unsafe { data.set_len(data_length.try_into().unwrap()) };
+
+        self.device.read(
+            (position as usize * DISK_SECTOR_SIZE).try_into().unwrap(),
+            data_length.try_into().unwrap(),
+            data.as_mut_slice(),
+        );
+
+        Some(data)
+    }
+
+    pub fn read_root(&mut self) -> Vec<ISODirectoryEntry> {
+        self.read_directory(self.root_directory.lba.lsb as usize)
     }
 
     pub fn header(&self) -> &ISOHeader {
