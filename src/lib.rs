@@ -5,6 +5,7 @@
 pub mod types;
 pub mod helpers;
 
+/// Each sector in ISO is 2048 bytes (imho)
 const DISK_SECTOR_SIZE: usize = 2048;
 
 const FLAG_HIDDEN: u8 = 1 << 0;
@@ -12,6 +13,7 @@ const FLAG_DIRECTORY: u8 = 1 << 1;
 const FLAG_ASSOCIATED: u8 = 1 << 2;
 const FLAG_EXTENDED_ATTR: u8 = 1 << 3;
 
+/// The header that starts on offset 0x8000 (bytes) on each ISO
 #[derive(Debug)]
 #[repr(C, packed)]
 pub struct ISOHeaderRaw {
@@ -52,6 +54,7 @@ pub struct ISOHeaderRaw {
 
 impl ISOHeaderRaw {
     pub fn zeroed() -> Self {
+    	// TODO: core::mem::zeroed()
         let zeroed = [0u8; size_of::<Self>()];
 
         let iso: ISOHeaderRaw = unsafe { core::mem::transmute(zeroed) };
@@ -59,10 +62,12 @@ impl ISOHeaderRaw {
         iso
     }
 
+	/// Helper function that exposes ISO header as an array off bytes
     pub fn as_slice(&mut self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
-
+    
+	/// Helper function that exposes ISO header as a mutable array off bytes
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe { core::slice::from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
     }
