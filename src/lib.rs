@@ -146,9 +146,9 @@ pub struct ISODirectoryRecord {
     pub(crate) length: u8,
     pub(crate) xar_length: u8,
     pub lba: types::LSB_MSB<u32>,
-    pub(crate) data_length: types::LSB_MSB<u32>,
-    pub(crate) datetime: ISODateTime,
-    pub(crate) flags: u8,
+    pub data_length: types::LSB_MSB<u32>,
+    pub datetime: ISODateTime,
+    pub flags: u8,
     pub(crate) unit_size: u8,
     pub(crate) interleave_gap_size: u8,
     pub(crate) volume_seq_number: types::LSB_MSB<u16>,
@@ -157,7 +157,7 @@ pub struct ISODirectoryRecord {
 
 #[derive(Debug, Default, Clone)]
 pub struct ISODirectoryEntry {
-    pub(crate) record: ISODirectoryRecord,
+    pub record: ISODirectoryRecord,
     pub name: String,
 }
 
