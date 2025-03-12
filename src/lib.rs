@@ -2,8 +2,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod types;
 pub mod helpers;
+pub mod rock_ridge;
+pub mod types;
 
 /// Each sector in ISO is 2048 bytes (imho)
 const DISK_SECTOR_SIZE: usize = 2048;
@@ -54,7 +55,7 @@ pub struct ISOHeaderRaw {
 
 impl ISOHeaderRaw {
     pub fn zeroed() -> Self {
-    	// TODO: core::mem::zeroed()
+        // TODO: core::mem::zeroed()
         let zeroed = [0u8; size_of::<Self>()];
 
         let iso: ISOHeaderRaw = unsafe { core::mem::transmute(zeroed) };
@@ -62,12 +63,12 @@ impl ISOHeaderRaw {
         iso
     }
 
-	/// Helper function that exposes ISO header as an array off bytes
+    /// Helper function that exposes ISO header as an array off bytes
     pub fn as_slice(&mut self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
-    
-	/// Helper function that exposes ISO header as a mutable array off bytes
+
+    /// Helper function that exposes ISO header as a mutable array off bytes
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe { core::slice::from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
     }
@@ -218,9 +219,46 @@ impl ISO9660 {
                 break;
             }
 
+            let main_part_size =
+                size_of::<ISODirectoryRecord>() + record.file_identifier_length as usize;
+            let extension_size = record.length as usize - main_part_size;
+
+            let mut address = byte_offset + main_part_size;
+            if address % 2 != 0 {
+                address += 1;
+            }
+
+            let mut extension_data: Vec<u8> = vec![0; extension_size];
+            self.device
+                .read(address, extension_size, extension_data.as_mut_slice());
+
+            let rock_ridge_data = rock_ridge::parse(extension_data.as_mut_slice());
+            let rr_name: Option<String> = {
+                if let Some(rr_data) = rock_ridge_data {
+                    let mut result_name: Option<String> = None;
+
+                    for i in rr_data {
+                        match i {
+                            rock_ridge::Entity::Name { name } => {
+                                result_name = Some(name);
+                            },
+                            _ => {
+                                // Do nothing, we only need names
+                            }
+                        }
+                    }
+
+                    result_name
+                } else {
+                    None
+                }
+            };
+
             // The whole buffer will be overwritten, so we don't have to initialize `result` Vec.
             #[allow(clippy::uninit_vec)]
-            let mut name = {
+            let mut name = if let Some(n) = rr_name {
+                n
+            } else {
                 let size = record.file_identifier_length as usize;
 
                 let mut result = Vec::with_capacity(size);
