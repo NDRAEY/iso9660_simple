@@ -84,6 +84,7 @@ use alloc::{
     vec::Vec,
 };
 
+/// Wrapper around ISOHeaderRaw that provides human-readable string data
 #[derive(Debug)]
 pub struct ISOHeader {
     pub(crate) header: ISOHeaderRaw,
@@ -104,6 +105,7 @@ pub struct ISOHeader {
 }
 
 impl ISOHeader {
+	/// Makes an ISOHeader from ISOHeaderRaw
     pub fn from_raw_header(header: ISOHeaderRaw) -> Self {
         ISOHeader {
             system_name: String::from_utf8(header.system_name.to_vec()).unwrap(),
@@ -129,6 +131,7 @@ impl ISOHeader {
     }
 }
 
+/// Represents date and time packed into every DirectoryEntry
 #[repr(C, packed(1))]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ISODateTime {
@@ -141,6 +144,7 @@ pub struct ISODateTime {
     pub gmt_offset: u8,
 }
 
+/// Represents a raw directory record (name is not counted in)
 #[repr(C, packed(1))]
 #[derive(Debug, Default, Clone)]
 pub struct ISODirectoryRecord {
@@ -156,6 +160,7 @@ pub struct ISODirectoryRecord {
     pub(crate) file_identifier_length: u8, // Here comes the name which size is dynamic
 }
 
+/// Represents a human-readable directory record.
 #[derive(Debug, Default, Clone)]
 pub struct ISODirectoryEntry {
     pub record: ISODirectoryRecord,
@@ -163,6 +168,7 @@ pub struct ISODirectoryEntry {
 }
 
 impl ISODirectoryEntry {
+	/// Simple function that checks is this entry a folder
     pub fn is_folder(&self) -> bool {
         (self.record.flags & FLAG_DIRECTORY) != 0
     }
@@ -175,6 +181,8 @@ impl ISODirectoryEntry {
 pub mod io;
 pub use io::{Read, Write};
 
+/// Main structure of the crate.
+/// Used to read and parse data from the `device`
 pub struct ISO9660 {
     data: ISOHeader,
     root_directory: ISODirectoryRecord,

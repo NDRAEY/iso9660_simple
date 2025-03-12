@@ -2,7 +2,7 @@ use alloc::{vec::Vec};
 
 use crate::{ISODirectoryEntry, ISO9660};
 
-// TODO: Rock Ridge support
+/// This helper function searches for an entry by path.
 pub fn get_directory_entry_by_path(iso: &mut ISO9660, path: &str) -> Option<ISODirectoryEntry> {
     let mut stems: Vec<&str> = path.split("/").filter(|v| !v.is_empty()).collect();
     if stems.is_empty() {
