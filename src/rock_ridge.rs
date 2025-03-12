@@ -1,4 +1,8 @@
 // https://people.freebsd.org/~emaste/rrip112.pdf
+use alloc::vec;
+use alloc::string::ToString;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 pub enum Entity {
     Name {

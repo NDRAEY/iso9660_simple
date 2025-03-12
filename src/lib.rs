@@ -6,6 +6,8 @@ pub mod helpers;
 pub mod rock_ridge;
 pub mod types;
 
+use alloc::vec;
+
 /// Each sector in ISO is 2048 bytes (imho)
 const DISK_SECTOR_SIZE: usize = 2048;
 
