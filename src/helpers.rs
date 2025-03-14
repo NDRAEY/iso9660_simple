@@ -31,7 +31,6 @@ pub fn get_directory_entry_by_path(iso: &mut ISO9660, path: &str) -> Option<ISOD
                 stems.remove(0);
 
                 break;
-            } else {
             }
         }
 

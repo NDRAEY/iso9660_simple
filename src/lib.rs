@@ -11,10 +11,10 @@ use alloc::vec;
 /// Each sector in ISO is 2048 bytes (imho)
 const DISK_SECTOR_SIZE: usize = 2048;
 
-const FLAG_HIDDEN: u8 = 1 << 0;
+//const FLAG_HIDDEN: u8 = 1 << 0;
 const FLAG_DIRECTORY: u8 = 1 << 1;
-const FLAG_ASSOCIATED: u8 = 1 << 2;
-const FLAG_EXTENDED_ATTR: u8 = 1 << 3;
+//const FLAG_ASSOCIATED: u8 = 1 << 2;
+//const FLAG_EXTENDED_ATTR: u8 = 1 << 3;
 
 /// The header that starts on offset 0x8000 (bytes) on each ISO
 #[derive(Debug)]
@@ -301,6 +301,7 @@ impl ISO9660 {
         result
     }
 
+	#[allow(clippy::uninit_vec)]
     pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry) -> Option<Vec<u8>> {
         if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
             return None;
@@ -313,7 +314,7 @@ impl ISO9660 {
         unsafe { data.set_len(data_length.try_into().unwrap()) };
 
         self.device.read(
-            (position as usize * DISK_SECTOR_SIZE).try_into().unwrap(),
+            position as usize * DISK_SECTOR_SIZE,
             data_length.try_into().unwrap(),
             data.as_mut_slice(),
         );

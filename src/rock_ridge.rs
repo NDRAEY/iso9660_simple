@@ -36,9 +36,9 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
                 continue;
             }
             "PX" => {
-                /// WTF???
+                // WTF???
                 // Extract data
-                let system_use_entry_version = data[index + 4];
+                // let system_use_entry_version = data[index + 4];
                 let posix_file_mode = &data[index + 5..=index + 12];
                 let posix_file_links = &data[index + 13..=index + 20];
                 let posix_file_user_id = &data[index + 21..=index + 28];
