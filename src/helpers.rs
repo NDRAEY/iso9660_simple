@@ -1,15 +1,19 @@
 use alloc::{vec::Vec};
+use alloc::string::ToString;
 
 use crate::{ISODirectoryEntry, ISO9660};
 
 /// This helper function searches for an entry by path.
 pub fn get_directory_entry_by_path(iso: &mut ISO9660, path: &str) -> Option<ISODirectoryEntry> {
     let mut stems: Vec<&str> = path.split("/").filter(|v| !v.is_empty()).collect();
-    let mut entry = iso.read_root();
-
     if stems.is_empty() {
-        return entry;
+        return Some(ISODirectoryEntry {
+            record: iso.root_directory.clone(),
+            name: "/".to_string()
+        });
     }
+
+    let mut entry = iso.read_root();
 
     loop {
         let mut found = false;
