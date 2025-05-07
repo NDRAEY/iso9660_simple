@@ -18,7 +18,7 @@ const FLAG_DIRECTORY: u8 = 1 << 1;
 
 /// The header that starts on offset 0x8000 (bytes) on each ISO
 #[derive(Debug)]
-#[repr(C, packed)]
+#[repr(C, packed(1))]
 pub struct ISOHeaderRaw {
     pub volume_descriptor_type: u8,
     pub id: [u8; 5],
@@ -324,6 +324,10 @@ impl ISO9660 {
 
     pub fn read_root(&mut self) -> Vec<ISODirectoryEntry> {
         self.read_directory(self.root_directory.lba.lsb as usize)
+    }
+
+    pub fn root(&self) -> &ISODirectoryRecord {
+        &self.root_directory
     }
 
     pub fn header(&self) -> &ISOHeader {

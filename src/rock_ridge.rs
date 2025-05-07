@@ -99,6 +99,11 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
 
                 index += length;
             }
+            "AL" => {
+                // Do I know what the hell is this?
+
+                index += length;
+            }
             "NM" => {
                 // let system_use_entry_version = data[index + 4];
                 // let flags = data[index + 5];

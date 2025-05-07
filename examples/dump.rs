@@ -39,16 +39,27 @@ fn main() {
 
     // let iso = ISO::from_raw_header(buffer);
 
-    let data = buffer.read_root();
+    // let data = buffer.read_root();
 
     // println!("{:#?}", iso);
     // let hdr = buffer.header();
     // println!("{:?}", hdr);
     // println!("{}", "=".to_string().repeat(25));
     
-    for i in data {
-        let size = i.record.data_length.lsb;
+    fn dump(reader: &mut ISO9660, lba: u32, level: usize) {
+        let data = reader.read_directory(lba as _);
 
-        println!("{} - {} bytes", i.name, size);
+        for i in data {
+            let size = i.record.data_length.lsb;
+
+            println!("{:<offset$}[{}] {} - {} bytes", "", if i.is_file() { "FILE" } else { "DIR" }, i.name, size, offset = level * 4);
+
+            if i.is_folder() && ![".", ".."].contains(&i.name.as_str()) {
+                dump(reader, i.record.lba.lsb, level + 1);
+            }
+        }
     }
+
+    let root_lba = buffer.root().lba.lsb;
+    dump(&mut buffer, root_lba, 0);
 }
