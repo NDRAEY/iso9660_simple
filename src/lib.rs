@@ -191,9 +191,10 @@ impl ISO9660 {
 
         let idr_size = core::mem::size_of::<ISODirectoryRecord>();
 
-        let root_dir_ptr: ISODirectoryRecord = unsafe { (raw_header.directory_entry[..idr_size].as_ptr()
-            as *const ISODirectoryRecord)
-            .read_unaligned() };
+        let root_dir_ptr: ISODirectoryRecord = unsafe {
+            (raw_header.directory_entry[..idr_size].as_ptr() as *const ISODirectoryRecord)
+                .read_unaligned()
+        };
 
         ISO9660 {
             data: ISOHeader::from_raw_header(raw_header),
