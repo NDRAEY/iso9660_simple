@@ -56,15 +56,6 @@ pub struct ISOHeaderRaw {
 }
 
 impl ISOHeaderRaw {
-    pub fn zeroed() -> Self {
-        // TODO: core::mem::zeroed()
-        let zeroed = [0u8; size_of::<Self>()];
-
-        let iso: ISOHeaderRaw = unsafe { core::mem::transmute(zeroed) };
-
-        iso
-    }
-
     /// Helper function that exposes ISO header as an array off bytes
     pub fn as_slice(&mut self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
@@ -78,7 +69,7 @@ impl ISOHeaderRaw {
 
 extern crate alloc;
 
-use core::mem::{size_of, transmute_copy};
+use core::mem::size_of;
 
 use alloc::{
     boxed::Box,
@@ -107,7 +98,7 @@ pub struct ISOHeader {
 }
 
 impl ISOHeader {
-	/// Makes an ISOHeader from ISOHeaderRaw
+    /// Makes an ISOHeader from ISOHeaderRaw
     pub fn from_raw_header(header: ISOHeaderRaw) -> Self {
         ISOHeader {
             system_name: String::from_utf8(header.system_name.to_vec()).unwrap(),
@@ -170,7 +161,7 @@ pub struct ISODirectoryEntry {
 }
 
 impl ISODirectoryEntry {
-	/// Simple function that checks is this entry a folder
+    /// Simple function that checks is this entry a folder
     pub fn is_folder(&self) -> bool {
         (self.record.flags & FLAG_DIRECTORY) != 0
     }
@@ -193,13 +184,16 @@ pub struct ISO9660 {
 
 impl ISO9660 {
     pub fn from_device(mut device: impl Read + 'static) -> ISO9660 {
-        let mut raw_header = ISOHeaderRaw::zeroed();
+        let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
         let read_size = size_of::<ISOHeaderRaw>();
 
         device.read(0x8000, read_size, raw_header.as_mut_slice());
 
-        let root_dir_ptr: ISODirectoryRecord =
-            unsafe { transmute_copy(&raw_header.directory_entry) };
+        let idr_size = core::mem::size_of::<ISODirectoryRecord>();
+
+        let root_dir_ptr: ISODirectoryRecord = unsafe { (raw_header.directory_entry[..idr_size].as_ptr()
+            as *const ISODirectoryRecord)
+            .read_unaligned() };
 
         ISO9660 {
             data: ISOHeader::from_raw_header(raw_header),
@@ -251,7 +245,7 @@ impl ISO9660 {
                         match i {
                             rock_ridge::Entity::Name { name } => {
                                 result_name = Some(name);
-                            },
+                            }
                             _ => {
                                 // Do nothing, we only need names
                             }
@@ -301,7 +295,7 @@ impl ISO9660 {
         result
     }
 
-	#[allow(clippy::uninit_vec)]
+    #[allow(clippy::uninit_vec)]
     pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry) -> Option<Vec<u8>> {
         if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
             return None;
