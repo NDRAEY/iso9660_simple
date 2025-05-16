@@ -80,21 +80,21 @@ use alloc::{
 /// Wrapper around ISOHeaderRaw that provides human-readable string data
 #[derive(Debug)]
 pub struct ISOHeader {
-    pub(crate) header: ISOHeaderRaw,
-    system_name: String,
-    label: String,
-    directory_entry: String,
-    volume_set_id: String,
-    publisher_id: String,
-    data_preparer_id: String,
-    application_id: String,
-    copyright_file_id: String,
-    abstract_file_id: String,
-    bibliographic_file_id: String,
-    volume_creation_date: String,
-    volume_modification_date: String,
-    volume_expiration_date: String,
-    volume_effective_date: String,
+    pub header: ISOHeaderRaw,
+    pub system_name: String,
+    pub label: String,
+    pub directory_entry: String,
+    pub volume_set_id: String,
+    pub publisher_id: String,
+    pub data_preparer_id: String,
+    pub application_id: String,
+    pub copyright_file_id: String,
+    pub abstract_file_id: String,
+    pub bibliographic_file_id: String,
+    pub volume_creation_date: String,
+    pub volume_modification_date: String,
+    pub volume_expiration_date: String,
+    pub volume_effective_date: String,
 }
 
 impl ISOHeader {
@@ -162,11 +162,11 @@ pub struct ISODirectoryEntry {
 
 impl ISODirectoryEntry {
     /// Simple function that checks is this entry a folder
-    pub fn is_folder(&self) -> bool {
+    pub const fn is_folder(&self) -> bool {
         (self.record.flags & FLAG_DIRECTORY) != 0
     }
 
-    pub fn is_file(&self) -> bool {
+    pub const fn is_file(&self) -> bool {
         !self.is_folder()
     }
 }
@@ -321,11 +321,11 @@ impl ISO9660 {
         self.read_directory(self.root_directory.lba.lsb as usize)
     }
 
-    pub fn root(&self) -> &ISODirectoryRecord {
+    pub const fn root(&self) -> &ISODirectoryRecord {
         &self.root_directory
     }
 
-    pub fn header(&self) -> &ISOHeader {
+    pub const fn header(&self) -> &ISOHeader {
         &self.data
     }
 }
