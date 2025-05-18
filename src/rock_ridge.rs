@@ -25,17 +25,17 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
         let identifier = &data[index..=index + 1];
         let length = data[index + 2] as usize;
 
-        let identifier = (identifier[0] as char).to_string() + &(identifier[1] as char).to_string();
+        let identifier = identifier;
 
         // println!("ID: {} (Size is: {})", identifier, length);
 
-        match identifier.as_str() {
-            "SP" => {
+        match identifier {
+            b"SP" => {
                 // IDK what `SP` is and there's no definition in the Rock Ridge spec, so skip this entity.
                 index += 7;
                 continue;
             }
-            "PX" => {
+            b"PX" => {
                 // WTF???
                 // Extract data
                 // let system_use_entry_version = data[index + 4];
@@ -46,36 +46,11 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
                 let posix_file_serial_number = &data[index + 37..=index + 44];
 
                 // First 4 bytes are needed, because each entry here is a (LSB-MSB) pair.
-                let posix_file_mode: u32 = posix_file_mode[..4]
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .unwrap();
-                let posix_file_links: u32 = posix_file_links[..4]
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .unwrap();
-                let posix_file_user_id: u32 = posix_file_user_id[..4]
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .unwrap();
-                let posix_file_group_id: u32 = posix_file_group_id[..4]
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .unwrap();
-                let posix_file_serial_number: u32 = posix_file_serial_number[..4]
-                    .iter()
-                    .map(|x| x.to_string())
-                    .collect::<String>()
-                    .parse::<u32>()
-                    .unwrap();
+                let posix_file_mode: u32 = u32::from_le_bytes(posix_file_mode[..4].try_into().unwrap());
+                let posix_file_links: u32 = u32::from_le_bytes(posix_file_links[..4].try_into().unwrap());
+                let posix_file_user_id: u32 = u32::from_le_bytes(posix_file_user_id[..4].try_into().unwrap());
+                let posix_file_group_id: u32 = u32::from_le_bytes(posix_file_group_id[..4].try_into().unwrap());
+                let posix_file_serial_number: u32 = u32::from_le_bytes(posix_file_serial_number[..4].try_into().unwrap());
 
                 entities.push(Entity::PosixAttributes {
                     posix_file_mode,
@@ -88,37 +63,37 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
                 index += length;
                 continue;
             }
-            "TF" => {
+            b"TF" => {
                 // let system_use_entry_version = data[index + 4];
                 // let flags = data[index + 5];
 
                 index += length;
             }
-            "CE" => {
+            b"CE" => {
                 // Just skip it
 
                 index += length;
             }
-            "AL" => {
+            b"AL" => {
                 // Do I know what the hell is this?
 
                 index += length;
             }
-            "NM" => {
+            b"NM" => {
                 // let system_use_entry_version = data[index + 4];
                 // let flags = data[index + 5];
                 let name = &data[index + 5..=index + (length - 1)];
 
-                let rname = String::from_utf8(name.to_vec()).unwrap();
+                let name = String::from_utf8_lossy(name).to_string();
 
-                entities.push(Entity::Name { name: rname });
+                entities.push(Entity::Name { name });
 
                 index += length;
             }
             &_ => {
                 todo!(
                     "Implement entity: {} ({}, {})",
-                    identifier,
+                    String::from_utf8_lossy(identifier).to_string(),
                     data[index],
                     data[index + 1]
                 );
