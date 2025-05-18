@@ -24,9 +24,6 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
     while index + 2 < data.len() {
         let identifier = &data[index..=index + 1];
         let length = data[index + 2] as usize;
-
-        let identifier = identifier;
-
         // println!("ID: {} (Size is: {})", identifier, length);
 
         match identifier {

@@ -69,7 +69,7 @@ impl ISOHeaderRaw {
 
 extern crate alloc;
 
-use core::mem::size_of;
+use core::{cell::OnceCell, mem::size_of};
 
 use alloc::{
     boxed::Box,
@@ -77,13 +77,10 @@ use alloc::{
     vec::Vec,
 };
 
-/// Wrapper around ISOHeaderRaw that provides human-readable string data
 #[derive(Debug)]
-pub struct ISOHeader {
-    pub header: ISOHeaderRaw,
+pub struct ISOHeaderInfo {
     pub system_name: String,
     pub label: String,
-    pub directory_entry: String,
     pub volume_set_id: String,
     pub publisher_id: String,
     pub data_preparer_id: String,
@@ -97,30 +94,45 @@ pub struct ISOHeader {
     pub volume_effective_date: String,
 }
 
+#[derive(Debug)]
+pub struct ISOHeader {
+    pub header: ISOHeaderRaw,
+    info: OnceCell<ISOHeaderInfo>
+}
+
 impl ISOHeader {
     /// Makes an ISOHeader from ISOHeaderRaw
     pub fn from_raw_header(header: ISOHeaderRaw) -> Self {
         ISOHeader {
-            system_name: String::from_utf8(header.system_name.to_vec()).unwrap(),
-            label: String::from_utf8(header.label.to_vec()).unwrap(),
-            directory_entry: String::from_utf8(header.directory_entry.to_vec()).unwrap(),
-            volume_set_id: String::from_utf8(header.volume_set_id.to_vec()).unwrap(),
-            publisher_id: String::from_utf8(header.publisher_id.to_vec()).unwrap(),
-            data_preparer_id: String::from_utf8(header.data_preparer_id.to_vec()).unwrap(),
-            application_id: String::from_utf8(header.application_id.to_vec()).unwrap(),
-            copyright_file_id: String::from_utf8(header.copyright_file_id.to_vec()).unwrap(),
-            abstract_file_id: String::from_utf8(header.abstract_file_id.to_vec()).unwrap(),
-            bibliographic_file_id: String::from_utf8(header.bibliographic_file_id.to_vec())
-                .unwrap(),
-            volume_creation_date: String::from_utf8(header.volume_creation_date.to_vec()).unwrap(),
-            volume_modification_date: String::from_utf8(header.volume_modification_date.to_vec())
-                .unwrap(),
-            volume_expiration_date: String::from_utf8(header.volume_expiration_date.to_vec())
-                .unwrap(),
-            volume_effective_date: String::from_utf8(header.volume_effective_date.to_vec())
-                .unwrap(),
             header,
+            info: OnceCell::new()
         }
+    }
+
+    pub fn info(&self) -> &ISOHeaderInfo {
+        self.info.get_or_init(|| {
+            let header = &self.header;
+
+            ISOHeaderInfo {
+                system_name: String::from_utf8_lossy(&header.system_name).trim_end().to_string(),
+                label: String::from_utf8_lossy(&header.label).trim_end().to_string(),
+                volume_set_id: String::from_utf8_lossy(&header.volume_set_id).trim_end().to_string(),
+                publisher_id: String::from_utf8_lossy(&header.publisher_id).trim_end().to_string(),
+                data_preparer_id: String::from_utf8_lossy(&header.data_preparer_id).trim_end().to_string(),
+                application_id: String::from_utf8_lossy(&header.application_id).trim_end().to_string(),
+                copyright_file_id: String::from_utf8_lossy(&header.copyright_file_id).trim_end().to_string(),
+                abstract_file_id: String::from_utf8_lossy(&header.abstract_file_id).trim_end().to_string(),
+                bibliographic_file_id: String::from_utf8_lossy(&header.bibliographic_file_id)
+                    .trim_end().to_string(),
+                volume_creation_date: String::from_utf8_lossy(&header.volume_creation_date).trim_end_matches('\0').to_string(),
+                volume_modification_date: String::from_utf8_lossy(&header.volume_modification_date)
+                    .trim_end_matches('\0').to_string(),
+                volume_expiration_date: String::from_utf8_lossy(&header.volume_expiration_date)
+                    .trim_end_matches('\0').to_string(),
+                volume_effective_date: String::from_utf8_lossy(&header.volume_effective_date)
+                    .trim_end_matches('\0').to_string(),
+            }
+        })
     }
 }
 
@@ -246,6 +258,7 @@ impl ISO9660 {
                         match i {
                             rock_ridge::Entity::Name { name } => {
                                 result_name = Some(name);
+                                break;
                             }
                             _ => {
                                 // Do nothing, we only need names
@@ -259,17 +272,12 @@ impl ISO9660 {
                 }
             };
 
-            // The whole buffer will be overwritten, so we don't have to initialize `result` Vec.
-            #[allow(clippy::uninit_vec)]
-            let mut name = if let Some(n) = rr_name {
+            let name = if let Some(n) = rr_name {
                 n
             } else {
                 let size = record.file_identifier_length as usize;
 
-                let mut result = Vec::with_capacity(size);
-                unsafe {
-                    result.set_len(size);
-                }
+                let mut result = vec![0; size];
 
                 self.device.read(
                     byte_offset + size_of::<ISODirectoryRecord>(),
@@ -277,16 +285,14 @@ impl ISO9660 {
                     result.as_mut_slice(),
                 );
 
-                String::from_utf8_lossy(result.as_slice()).to_string()
+                if result[0] == 0 {
+                    String::from(".")
+                } else if result[0] == 1 {
+                    String::from("..")
+                } else {
+                    String::from_utf8_lossy(result.as_slice()).to_string()
+                }
             };
-
-            if name == "\0" {
-                name = ".".to_string();
-            }
-
-            if name == "\u{1}" {
-                name = "..".to_string();
-            }
 
             byte_offset += record.length as usize;
 
@@ -317,14 +323,17 @@ impl ISO9660 {
         Some(data)
     }
 
+    #[inline]
     pub fn read_root(&mut self) -> Vec<ISODirectoryEntry> {
         self.read_directory(self.root_directory.lba.lsb as usize)
     }
 
+    #[inline]
     pub const fn root(&self) -> &ISODirectoryRecord {
         &self.root_directory
     }
 
+    #[inline]
     pub const fn header(&self) -> &ISOHeader {
         &self.data
     }
