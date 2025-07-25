@@ -78,8 +78,26 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
             }
             b"NM" => {
                 // let system_use_entry_version = data[index + 4];
-                // let flags = data[index + 5];
-                let name = &data[index + 5..=index + (length - 1)];
+                let flags = data[index + 4];
+               
+                if (flags & (1 << 1)) != 0 {
+                    entities.push(Entity::Name { name: String::from(".") });
+                    index += length;
+                    
+                    continue;
+                }
+
+                if (flags & (1 << 2)) != 0 {
+                    entities.push(Entity::Name { name: String::from("..") });
+                    index += length;
+
+                    continue;
+                }
+
+                let start = index + 5;
+                let end = index + length;
+
+                let name = &data[start..end];
 
                 let name = String::from_utf8_lossy(name).to_string();
 
