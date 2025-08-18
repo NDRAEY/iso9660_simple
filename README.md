@@ -4,5 +4,5 @@ It's a Rust crate that provides minimal ISO9660 images reading and parsing funct
 
 # To Do
 
-- [ ] Rock Ridge extension support
-- [ ] Joilet extension support
+- [x] Rock Ridge extension support
+- [ ] Joliet extension support

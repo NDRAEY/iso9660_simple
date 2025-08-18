@@ -184,7 +184,7 @@ impl ISODirectoryEntry {
 }
 
 pub mod io;
-pub use io::{Read, Write};
+pub use io::Read;
 
 /// Main structure of the crate.
 /// Used to read and parse data from the `device`
@@ -197,9 +197,8 @@ pub struct ISO9660 {
 impl ISO9660 {
     pub fn from_device(mut device: impl Read + 'static) -> ISO9660 {
         let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
-        let read_size = size_of::<ISOHeaderRaw>();
 
-        device.read(0x8000, read_size, raw_header.as_mut_slice());
+        device.read(0x8000, raw_header.as_mut_slice());
 
         let idr_size = core::mem::size_of::<ISODirectoryRecord>();
 
@@ -230,7 +229,7 @@ impl ISO9660 {
             };
 
             self.device
-                .read(byte_offset as _, size_of::<ISODirectoryRecord>(), ptr);
+                .read(byte_offset as _, ptr);
 
             if record.length == 0 {
                 break;
@@ -247,7 +246,7 @@ impl ISO9660 {
 
             let mut extension_data: Vec<u8> = vec![0; extension_size];
             self.device
-                .read(address, extension_size, extension_data.as_mut_slice());
+                .read(address, extension_data.as_mut_slice());
 
             let rock_ridge_data = rock_ridge::parse(extension_data.as_mut_slice());
             let rr_name: Option<String> = {
@@ -281,8 +280,7 @@ impl ISO9660 {
 
                 self.device.read(
                     byte_offset + size_of::<ISODirectoryRecord>(),
-                    size,
-                    result.as_mut_slice(),
+                    &mut result,
                 );
 
                 if result[0] == 0 {
@@ -316,8 +314,7 @@ impl ISO9660 {
 
         self.device.read(
             position as usize * DISK_SECTOR_SIZE,
-            data_length.try_into().unwrap(),
-            data.as_mut_slice(),
+            &mut data,
         );
 
         Some(data)

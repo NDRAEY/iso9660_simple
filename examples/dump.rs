@@ -1,20 +1,20 @@
-use iso9660_simple::{helpers, Read as ISORead, *};
+use iso9660_simple::{Read as ISORead, ISO9660};
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom},
 };
 
 struct FileDevice(File);
 
 impl ISORead for FileDevice {
-    fn read(&mut self, position: usize, size: usize, buffer: &mut [u8]) -> Option<()> {
+    fn read(&mut self, position: usize, buffer: &mut [u8]) -> Option<()> {
         // println!("Seek and read: 0x{:x}", position);
 
         if self.0.seek(SeekFrom::Start(position as u64)).is_err() {
             return None;
         }
 
-        if self.0.read_exact(&mut buffer[..size]).is_ok() {
+        if self.0.read_exact(buffer).is_ok() {
             Some(())
         } else {
             None
