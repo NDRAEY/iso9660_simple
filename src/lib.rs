@@ -248,20 +248,15 @@ impl ISO9660 {
             self.device
                 .read(address, extension_data.as_mut_slice());
 
-            let rock_ridge_data = rock_ridge::parse(extension_data.as_mut_slice());
-            let rr_name: Option<String> = {
+            let rock_ridge_data = rock_ridge::parse(&extension_data);
+            let rr_name: Option<&str> = {
                 if let Some(rr_data) = rock_ridge_data {
-                    let mut result_name: Option<String> = None;
+                    let mut result_name: Option<&str> = None;
 
                     for i in rr_data {
-                        match i {
-                            rock_ridge::Entity::Name { name } => {
-                                result_name = Some(name);
-                                break;
-                            }
-                            _ => {
-                                // Do nothing, we only need names
-                            }
+                        if let rock_ridge::Entity::Name { name } = i {
+                            result_name = Some(name);
+                            break;   
                         }
                     }
 
@@ -272,7 +267,7 @@ impl ISO9660 {
             };
 
             let name = if let Some(n) = rr_name {
-                n
+                n.to_owned()
             } else {
                 let size = record.file_identifier_length as usize;
 
@@ -288,7 +283,7 @@ impl ISO9660 {
                 } else if result[0] == 1 {
                     String::from("..")
                 } else {
-                    String::from_utf8_lossy(result.as_slice()).to_string()
+                    String::from_utf8_lossy(&result).to_string()
                 }
             };
 

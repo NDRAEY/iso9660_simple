@@ -1,12 +1,12 @@
 // https://people.freebsd.org/~emaste/rrip112.pdf
-use alloc::vec;
-use alloc::string::ToString;
 use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 
-pub enum Entity {
+pub enum Entity<'data> {
     Name {
-        name: String,
+        name: &'data str,
     },
     PosixAttributes {
         posix_file_mode: u32,
@@ -17,7 +17,7 @@ pub enum Entity {
     },
 }
 
-pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
+pub fn parse<'data>(data: &'data [u8]) -> Option<Vec<Entity<'data>>> {
     let mut index = 0;
     let mut entities: Vec<Entity> = vec![];
 
@@ -43,11 +43,16 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
                 let posix_file_serial_number = &data[index + 37..=index + 44];
 
                 // First 4 bytes are needed, because each entry here is a (LSB-MSB) pair.
-                let posix_file_mode: u32 = u32::from_le_bytes(posix_file_mode[..4].try_into().unwrap());
-                let posix_file_links: u32 = u32::from_le_bytes(posix_file_links[..4].try_into().unwrap());
-                let posix_file_user_id: u32 = u32::from_le_bytes(posix_file_user_id[..4].try_into().unwrap());
-                let posix_file_group_id: u32 = u32::from_le_bytes(posix_file_group_id[..4].try_into().unwrap());
-                let posix_file_serial_number: u32 = u32::from_le_bytes(posix_file_serial_number[..4].try_into().unwrap());
+                let posix_file_mode: u32 =
+                    u32::from_le_bytes(posix_file_mode[..4].try_into().unwrap());
+                let posix_file_links: u32 =
+                    u32::from_le_bytes(posix_file_links[..4].try_into().unwrap());
+                let posix_file_user_id: u32 =
+                    u32::from_le_bytes(posix_file_user_id[..4].try_into().unwrap());
+                let posix_file_group_id: u32 =
+                    u32::from_le_bytes(posix_file_group_id[..4].try_into().unwrap());
+                let posix_file_serial_number: u32 =
+                    u32::from_le_bytes(posix_file_serial_number[..4].try_into().unwrap());
 
                 entities.push(Entity::PosixAttributes {
                     posix_file_mode,
@@ -79,16 +84,16 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
             b"NM" => {
                 // let system_use_entry_version = data[index + 4];
                 let flags = data[index + 4];
-               
+
                 if (flags & (1 << 1)) != 0 {
-                    entities.push(Entity::Name { name: String::from(".") });
+                    entities.push(Entity::Name { name: "." });
                     index += length;
-                    
+
                     continue;
                 }
 
                 if (flags & (1 << 2)) != 0 {
-                    entities.push(Entity::Name { name: String::from("..") });
+                    entities.push(Entity::Name { name: ".." });
                     index += length;
 
                     continue;
@@ -99,9 +104,9 @@ pub fn parse(data: &[u8]) -> Option<Vec<Entity>> {
 
                 let name = &data[start..end];
 
-                let name = String::from_utf8_lossy(name).to_string();
-
-                entities.push(Entity::Name { name });
+                entities.push(Entity::Name {
+                    name: unsafe { str::from_utf8_unchecked(name) },
+                });
 
                 index += length;
             }
