@@ -69,7 +69,7 @@ impl ISOHeaderRaw {
 
 extern crate alloc;
 
-use core::{cell::OnceCell, mem::size_of};
+use core::mem::size_of;
 
 use alloc::{
     borrow::ToOwned,
@@ -79,61 +79,63 @@ use alloc::{
 };
 
 #[derive(Debug)]
-pub struct ISOHeaderInfo {
-    pub system_name: String,
-    pub label: String,
-    pub volume_set_id: String,
-    pub publisher_id: String,
-    pub data_preparer_id: String,
-    pub application_id: String,
-    pub copyright_file_id: String,
-    pub abstract_file_id: String,
-    pub bibliographic_file_id: String,
-    pub volume_creation_date: String,
-    pub volume_modification_date: String,
-    pub volume_expiration_date: String,
-    pub volume_effective_date: String,
+pub struct ISOHeaderInfo<'this> {
+    pub system_name: &'this str,
+    pub label: &'this str,
+    pub volume_set_id: &'this str,
+    pub publisher_id: &'this str,
+    pub data_preparer_id: &'this str,
+    pub application_id: &'this str,
+    pub copyright_file_id: &'this str,
+    pub abstract_file_id: &'this str,
+    pub bibliographic_file_id: &'this str,
+    pub volume_creation_date: &'this str,
+    pub volume_modification_date: &'this str,
+    pub volume_expiration_date: &'this str,
+    pub volume_effective_date: &'this str,
 }
 
 #[derive(Debug)]
 pub struct ISOHeader {
     pub header: ISOHeaderRaw,
-    info: OnceCell<ISOHeaderInfo>
 }
 
 impl ISOHeader {
     /// Makes an ISOHeader from ISOHeaderRaw
     pub fn from_raw_header(header: ISOHeaderRaw) -> Self {
-        ISOHeader {
-            header,
-            info: OnceCell::new()
-        }
+        ISOHeader { header }
     }
 
-    pub fn info(&self) -> &ISOHeaderInfo {
-        self.info.get_or_init(|| {
-            let header = &self.header;
+    pub fn info(&self) -> ISOHeaderInfo<'_> {
+        let header = &self.header;
 
-            ISOHeaderInfo {
-                system_name: String::from_utf8_lossy(&header.system_name).trim_end().to_string(),
-                label: String::from_utf8_lossy(&header.label).trim_end().to_string(),
-                volume_set_id: String::from_utf8_lossy(&header.volume_set_id).trim_end().to_string(),
-                publisher_id: String::from_utf8_lossy(&header.publisher_id).trim_end().to_string(),
-                data_preparer_id: String::from_utf8_lossy(&header.data_preparer_id).trim_end().to_string(),
-                application_id: String::from_utf8_lossy(&header.application_id).trim_end().to_string(),
-                copyright_file_id: String::from_utf8_lossy(&header.copyright_file_id).trim_end().to_string(),
-                abstract_file_id: String::from_utf8_lossy(&header.abstract_file_id).trim_end().to_string(),
-                bibliographic_file_id: String::from_utf8_lossy(&header.bibliographic_file_id)
-                    .trim_end().to_string(),
-                volume_creation_date: String::from_utf8_lossy(&header.volume_creation_date).trim_end_matches('\0').to_string(),
-                volume_modification_date: String::from_utf8_lossy(&header.volume_modification_date)
-                    .trim_end_matches('\0').to_string(),
-                volume_expiration_date: String::from_utf8_lossy(&header.volume_expiration_date)
-                    .trim_end_matches('\0').to_string(),
-                volume_effective_date: String::from_utf8_lossy(&header.volume_effective_date)
-                    .trim_end_matches('\0').to_string(),
-            }
-        })
+        ISOHeaderInfo {
+            system_name: str::from_utf8(&header.system_name).unwrap().trim_end(),
+            label: str::from_utf8(&header.label).unwrap().trim_end(),
+            volume_set_id: str::from_utf8(&header.volume_set_id).unwrap().trim_end(),
+            publisher_id: str::from_utf8(&header.publisher_id).unwrap().trim_end(),
+            data_preparer_id: str::from_utf8(&header.data_preparer_id).unwrap().trim_end(),
+            application_id: str::from_utf8(&header.application_id).unwrap().trim_end(),
+            copyright_file_id: str::from_utf8(&header.copyright_file_id)
+                .unwrap()
+                .trim_end(),
+            abstract_file_id: str::from_utf8(&header.abstract_file_id).unwrap().trim_end(),
+            bibliographic_file_id: str::from_utf8(&header.bibliographic_file_id)
+                .unwrap()
+                .trim_end(),
+            volume_creation_date: str::from_utf8(&header.volume_creation_date)
+                .unwrap()
+                .trim_end_matches('\0'),
+            volume_modification_date: str::from_utf8(&header.volume_modification_date)
+                .unwrap()
+                .trim_end_matches('\0'),
+            volume_expiration_date: str::from_utf8(&header.volume_expiration_date)
+                .unwrap()
+                .trim_end_matches('\0'),
+            volume_effective_date: str::from_utf8(&header.volume_effective_date)
+                .unwrap()
+                .trim_end_matches('\0'),
+        }
     }
 }
 
@@ -186,7 +188,7 @@ impl ISODirectoryEntry {
     pub fn lsb_position(&self) -> u32 {
         self.record.lba.lsb
     }
-    
+
     pub fn file_size(&self) -> u32 {
         self.record.data_length.lsb
     }
@@ -237,8 +239,7 @@ impl ISO9660 {
                 )
             };
 
-            self.device
-                .read(byte_offset as _, ptr);
+            self.device.read(byte_offset as _, ptr);
 
             if record.length == 0 {
                 break;
@@ -254,8 +255,7 @@ impl ISO9660 {
             }
 
             let mut extension_data: Vec<u8> = vec![0; extension_size];
-            self.device
-                .read(address, &mut extension_data);
+            self.device.read(address, &mut extension_data);
 
             let rock_ridge_data = rock_ridge::parse(&extension_data);
             let rr_name: Option<&str> = {
@@ -265,7 +265,7 @@ impl ISO9660 {
                     for i in rr_data {
                         if let rock_ridge::Entity::Name { name } = i {
                             result_name = Some(name);
-                            break;   
+                            break;
                         }
                     }
 
@@ -282,10 +282,8 @@ impl ISO9660 {
 
                 let mut result = vec![0; size];
 
-                self.device.read(
-                    byte_offset + size_of::<ISODirectoryRecord>(),
-                    &mut result,
-                );
+                self.device
+                    .read(byte_offset + size_of::<ISODirectoryRecord>(), &mut result);
 
                 if result[0] == 0 {
                     String::from(".")
@@ -305,7 +303,12 @@ impl ISO9660 {
     }
 
     #[allow(clippy::uninit_vec)]
-    pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry, offset: usize, data: &mut [u8]) -> Option<()> {
+    pub fn read_file(
+        &mut self,
+        directory_entry: &ISODirectoryEntry,
+        offset: usize,
+        data: &mut [u8],
+    ) -> Option<()> {
         if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
             return None;
         }
@@ -317,10 +320,8 @@ impl ISO9660 {
             return None;
         }
 
-        self.device.read(
-            (position * DISK_SECTOR_SIZE) + offset,
-            data,
-        );
+        self.device
+            .read((position * DISK_SECTOR_SIZE) + offset, data);
 
         Some(())
     }
