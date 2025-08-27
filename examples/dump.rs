@@ -8,8 +8,6 @@ struct FileDevice(File);
 
 impl ISORead for FileDevice {
     fn read(&mut self, position: usize, buffer: &mut [u8]) -> Option<()> {
-        // println!("Seek and read: 0x{:x}", position);
-
         if self.0.seek(SeekFrom::Start(position as u64)).is_err() {
             return None;
         }
@@ -45,7 +43,7 @@ fn main() {
     // let hdr = buffer.header();
     // println!("{:?}", hdr);
     // println!("{}", "=".to_string().repeat(25));
-    
+
     fn dump(reader: &mut ISO9660, lba: u32, level: usize) {
         let data = reader.read_directory(lba as _);
 
