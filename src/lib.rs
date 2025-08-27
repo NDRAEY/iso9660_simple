@@ -72,6 +72,7 @@ extern crate alloc;
 use core::{cell::OnceCell, mem::size_of};
 
 use alloc::{
+    borrow::ToOwned,
     boxed::Box,
     string::{String, ToString},
     vec::Vec,
@@ -181,6 +182,14 @@ impl ISODirectoryEntry {
     pub const fn is_file(&self) -> bool {
         !self.is_folder()
     }
+
+    pub fn lsb_position(&self) -> u32 {
+        self.record.lba.lsb
+    }
+    
+    pub fn file_size(&self) -> u32 {
+        self.record.data_length.lsb
+    }
 }
 
 pub mod io;
@@ -246,7 +255,7 @@ impl ISO9660 {
 
             let mut extension_data: Vec<u8> = vec![0; extension_size];
             self.device
-                .read(address, extension_data.as_mut_slice());
+                .read(address, &mut extension_data);
 
             let rock_ridge_data = rock_ridge::parse(&extension_data);
             let rr_name: Option<&str> = {
@@ -296,23 +305,24 @@ impl ISO9660 {
     }
 
     #[allow(clippy::uninit_vec)]
-    pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry) -> Option<Vec<u8>> {
+    pub fn read_file(&mut self, directory_entry: &ISODirectoryEntry, offset: usize, data: &mut [u8]) -> Option<()> {
         if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
             return None;
         }
 
-        let position = directory_entry.record.lba.lsb;
-        let data_length = directory_entry.record.data_length.lsb;
+        let position = directory_entry.lsb_position() as usize;
+        let data_length = directory_entry.file_size() as usize;
 
-        let mut data = Vec::<u8>::with_capacity(data_length.try_into().unwrap());
-        unsafe { data.set_len(data_length.try_into().unwrap()) };
+        if offset + data.len() > data_length {
+            return None;
+        }
 
         self.device.read(
-            position as usize * DISK_SECTOR_SIZE,
-            &mut data,
+            (position * DISK_SECTOR_SIZE) + offset,
+            data,
         );
 
-        Some(data)
+        Some(())
     }
 
     #[inline]

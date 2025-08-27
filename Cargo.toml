@@ -1,6 +1,6 @@
 [package]
 name = "iso9660_simple"
-version = "0.1.20"
+version = "0.1.21"
 edition = "2021"
 authors = ["NDRAEY <pikachu_andrey@vk.com>"]
 license = "MIT"

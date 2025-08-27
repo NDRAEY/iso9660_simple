@@ -56,5 +56,6 @@ let data = iso.read_directory(root_directory_lba);  // Read root directory
 
 let first_file = data.first().unwrap();  // Get first file info
 
-let data = iso.read_file(fist_file);  // Read the whole file into Vec<u8>.
+let mut buffer = vec![0u8; first_file.file_size()];
+let data = iso.read_file(fist_file, 0, &mut buffer);  // Read the whole file into Vec<u8>.
 ```
