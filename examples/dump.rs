@@ -47,7 +47,7 @@ fn main() {
     fn dump(reader: &mut ISO9660, lba: u32, level: usize) {
         let data = reader.read_directory(lba as _);
 
-        for i in data {
+        for i in data.collect::<Vec<_>>() {
             let size = i.record.data_length.lsb;
 
             println!("{:<offset$}[{}] {} - {} bytes", "", if i.is_file() { "FILE" } else { "DIR" }, i.name, size, offset = level * 4);
