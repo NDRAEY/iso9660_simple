@@ -5,6 +5,7 @@
 pub mod helpers;
 pub mod rock_ridge;
 pub mod types;
+pub mod iter;
 
 use alloc::vec;
 
@@ -197,6 +198,8 @@ impl ISODirectoryEntry {
 pub mod io;
 pub use io::Read;
 
+use crate::iter::DirectoryIter;
+
 /// Main structure of the crate.
 /// Used to read and parse data from the `device`
 pub struct ISO9660 {
@@ -225,84 +228,41 @@ impl ISO9660 {
         }
     }
 
-    pub fn read_directory(&mut self, start_lba: usize) -> Vec<ISODirectoryEntry> {
-        let mut result = Vec::<ISODirectoryEntry>::new();
-
-        let mut byte_offset = start_lba * DISK_SECTOR_SIZE;
-
-        loop {
-            let mut record = ISODirectoryRecord::default();
-            let ptr = unsafe {
-                core::slice::from_raw_parts_mut(
-                    &mut record as *mut ISODirectoryRecord as *mut u8,
-                    size_of::<ISODirectoryRecord>(),
-                )
-            };
-
-            self.device.read(byte_offset as _, ptr);
-
-            if record.length == 0 {
-                break;
-            }
-
-            let main_part_size =
-                size_of::<ISODirectoryRecord>() + record.file_identifier_length as usize;
-            let extension_size = record.length as usize - main_part_size;
-
-            let mut address = byte_offset + main_part_size;
-            if address % 2 != 0 {
-                address += 1;
-            }
-
-            let mut extension_data: Vec<u8> = vec![0; extension_size];
-            self.device.read(address, &mut extension_data);
-
-            let rock_ridge_data = rock_ridge::parse(&extension_data);
-            let rr_name: Option<&str> = {
-                if let Some(rr_data) = rock_ridge_data {
-                    let mut result_name: Option<&str> = None;
-
-                    for i in rr_data {
-                        if let rock_ridge::Entity::Name { name } = i {
-                            result_name = Some(name);
-                            break;
-                        }
-                    }
-
-                    result_name
-                } else {
-                    None
-                }
-            };
-
-            let name = if let Some(n) = rr_name {
-                n.to_owned()
-            } else {
-                let size = record.file_identifier_length as usize;
-
-                let mut result = vec![0; size];
-
-                self.device
-                    .read(byte_offset + size_of::<ISODirectoryRecord>(), &mut result);
-
-                if result[0] == 0 {
-                    String::from(".")
-                } else if result[0] == 1 {
-                    String::from("..")
-                } else {
-                    String::from_utf8_lossy(&result).to_string()
-                }
-            };
-
-            byte_offset += record.length as usize;
-
-            result.push(ISODirectoryEntry { record, name });
+    pub fn read_rock_ridge_name(
+        &mut self,
+        byte_offset: usize,
+        main_part_size: usize,
+        extension_size: usize,
+    ) -> Option<String> {
+        let mut address = byte_offset + main_part_size;
+        if address % 2 != 0 {
+            address += 1;
         }
 
-        result
+        let mut extension_data: Vec<u8> = vec![0; extension_size];
+        self.device.read(address, &mut extension_data);
+
+        let rock_ridge_data = rock_ridge::parse(&extension_data);
+
+        if let Some(rr_data) = rock_ridge_data {
+            for i in rr_data {
+                if let rock_ridge::Entity::Name { name } = i {
+                    return Some(name.to_owned());
+                }
+            }
+
+            None
+        } else {
+            None
+        }
     }
 
-    #[allow(clippy::uninit_vec)]
+    pub fn read_directory(&mut self, start_lba: usize) -> DirectoryIter<'_> {
+        let byte_offset = start_lba * DISK_SECTOR_SIZE;
+
+        DirectoryIter::new(self, byte_offset)
+    }
+
     pub fn read_file(
         &mut self,
         directory_entry: &ISODirectoryEntry,
@@ -327,7 +287,7 @@ impl ISO9660 {
     }
 
     #[inline]
-    pub fn read_root(&mut self) -> Vec<ISODirectoryEntry> {
+    pub fn read_root(&mut self) -> DirectoryIter<'_> {
         self.read_directory(self.root_directory.lba.lsb as usize)
     }
 

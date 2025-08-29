@@ -35,24 +35,15 @@ fn main() {
     let file = File::open(filename).unwrap();
     let mut buffer = ISO9660::from_device(FileDevice(file));
 
-    // let iso = ISO::from_raw_header(buffer);
-
-    // let data = buffer.read_root();
-
-    // println!("{:#?}", iso);
-    // let hdr = buffer.header();
-    // println!("{:?}", hdr);
-    // println!("{}", "=".to_string().repeat(25));
-
     fn dump(reader: &mut ISO9660, lba: u32, level: usize) {
         let data = reader.read_directory(lba as _);
 
-        for i in data {
+        for i in data.collect::<Vec<_>>() {
             let size = i.record.data_length.lsb;
 
             println!("{:<offset$}[{}] {} - {} bytes", "", if i.is_file() { "FILE" } else { "DIR" }, i.name, size, offset = level * 4);
 
-            if i.is_folder() && ![".", ".."].contains(&i.name.as_str()) {
+            if ![".", ".."].contains(&i.name.as_str()) && i.is_folder() {
                 dump(reader, i.record.lba.lsb, level + 1);
             }
         }
