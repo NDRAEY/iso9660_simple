@@ -1,10 +1,10 @@
 [package]
 name = "iso9660_simple"
-version = "0.1.21"
+version = "0.1.22"
 edition = "2021"
 authors = ["NDRAEY <pikachu_andrey@vk.com>"]
 license = "MIT"
-description = "ISO9660 reading library (WIP)"
+description = "ISO9660 reading library"
 repository = "https://github.com/NDRAEY/iso9660_simple"
 categories = ["filesystem", "no-std"]
 keywords = ["iso", "iso9660", "no_std"]

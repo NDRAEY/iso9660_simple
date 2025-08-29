@@ -1,4 +1,6 @@
-use core::cell::{Ref, RefCell};
+use core::cell::RefCell;
+use alloc::vec;
+use alloc::borrow::ToOwned;
 
 use crate::{ISODirectoryEntry, ISODirectoryRecord, ISO9660};
 

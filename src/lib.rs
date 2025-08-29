@@ -75,7 +75,7 @@ use core::mem::size_of;
 use alloc::{
     borrow::ToOwned,
     boxed::Box,
-    string::{String, ToString},
+    string::String,
     vec::Vec,
 };
 
