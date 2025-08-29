@@ -19,7 +19,7 @@ pub fn get_directory_entry_by_path(iso: &mut ISO9660, path: &str) -> Option<ISOD
     loop {
         let mut found = false;
 
-        for i in entry {
+        for i in &entry {
             if i.name == stems[0] {
                 if stems.len() == 1 {
                     return Some(i.clone());

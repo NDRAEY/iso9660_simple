@@ -1,20 +1,22 @@
+use core::cell::{Ref, RefCell};
+
 use crate::{ISODirectoryEntry, ISODirectoryRecord, ISO9660};
 
 pub struct DirectoryIter<'iso> {
-    iso: &'iso mut ISO9660,
-    byte_offset: usize,
+    iso: RefCell<&'iso mut ISO9660>,
+    byte_offset: RefCell<usize>,
 }
 
 impl<'iso> DirectoryIter<'iso> {
     pub fn new(iso: &'iso mut ISO9660, byte_offset: usize) -> Self {
         Self {
-            iso,
-            byte_offset,
+            iso: RefCell::new(iso),
+            byte_offset: RefCell::new(byte_offset),
         }
     }
 }
 
-impl Iterator for DirectoryIter<'_> {
+impl Iterator for &DirectoryIter<'_> {
     type Item = ISODirectoryEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -27,8 +29,9 @@ impl Iterator for DirectoryIter<'_> {
         };
 
         self.iso
+            .borrow_mut()
             .device
-            .read(self.byte_offset as _, ptr);
+            .read(*self.byte_offset.borrow() as _, ptr);
 
         if record.length == 0 {
             return None;
@@ -39,8 +42,8 @@ impl Iterator for DirectoryIter<'_> {
         let extension_size = record.length as usize - main_part_size;
 
         let rr_name = ISO9660::read_rock_ridge_name(
-            self.iso,
-            self.byte_offset,
+            &mut self.iso.borrow_mut(),
+            *self.byte_offset.borrow(),
             main_part_size,
             extension_size,
         );
@@ -52,8 +55,8 @@ impl Iterator for DirectoryIter<'_> {
 
             let mut result = vec![0; size];
 
-            self.iso.device.read(
-                self.byte_offset + size_of::<ISODirectoryRecord>(),
+            self.iso.borrow_mut().device.read(
+                *self.byte_offset.borrow() + size_of::<ISODirectoryRecord>(),
                 &mut result,
             );
 
@@ -68,7 +71,7 @@ impl Iterator for DirectoryIter<'_> {
             final_name.to_owned()
         };
 
-        self.byte_offset += record.length as usize;
+        *self.byte_offset.borrow_mut() += record.length as usize;
 
         Some(ISODirectoryEntry { record, name })
     }
