@@ -33,7 +33,13 @@ fn main() {
     let filename = args.nth(args.len() - 1).unwrap();
 
     let file = File::open(filename).unwrap();
-    let mut buffer = ISO9660::from_device(FileDevice(file));
+    let mut iso = match ISO9660::from_device(FileDevice(file)) {
+        Some(iso) => iso,
+        None => {
+            eprintln!("It's not an ISO9660 (*.iso) file!");
+            std::process::exit(1);
+        },
+    };
 
     fn dump(reader: &mut ISO9660, lba: u32, level: usize) {
         let data = reader.read_directory(lba as _);
@@ -49,6 +55,6 @@ fn main() {
         }
     }
 
-    let root_lba = buffer.root().lba.lsb;
-    dump(&mut buffer, root_lba, 0);
+    let root_lba = iso.root().lba.lsb;
+    dump(&mut iso, root_lba, 0);
 }

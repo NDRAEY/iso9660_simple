@@ -203,16 +203,18 @@ use crate::iter::DirectoryIter;
 /// Main structure of the crate.
 /// Used to read and parse data from the `device`
 pub struct ISO9660 {
-    data: ISOHeader,
     root_directory: ISODirectoryRecord,
     device: Box<dyn Read>,
 }
 
 impl ISO9660 {
-    pub fn from_device(mut device: impl Read + 'static) -> ISO9660 {
+    pub fn from_device(mut device: impl Read + 'static) -> Option<ISO9660> {
         let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
-
         device.read(0x8000, raw_header.as_mut_slice());
+
+        if &raw_header.id != b"CD001" {
+            return None;
+        }
 
         let idr_size = core::mem::size_of::<ISODirectoryRecord>();
 
@@ -221,11 +223,10 @@ impl ISO9660 {
                 .read_unaligned()
         };
 
-        ISO9660 {
-            data: ISOHeader::from_raw_header(raw_header),
+        Some(ISO9660 {
             root_directory: root_dir_ptr,
             device: Box::new(device),
-        }
+        })
     }
 
     pub fn read_rock_ridge_name(
@@ -282,6 +283,14 @@ impl ISO9660 {
         Some(())
     }
 
+    pub fn read_header(&mut self) -> ISOHeader {
+        let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
+
+        self.device.read(0x8000, raw_header.as_mut_slice());
+
+        ISOHeader::from_raw_header(raw_header)
+    }
+
     #[inline]
     pub fn read_root(&mut self) -> DirectoryIter<'_> {
         self.read_directory(self.root_directory.lba.lsb as usize)
@@ -290,10 +299,5 @@ impl ISO9660 {
     #[inline]
     pub const fn root(&self) -> &ISODirectoryRecord {
         &self.root_directory
-    }
-
-    #[inline]
-    pub const fn header(&self) -> &ISOHeader {
-        &self.data
     }
 }
