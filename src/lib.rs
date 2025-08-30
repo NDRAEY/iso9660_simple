@@ -244,17 +244,13 @@ impl ISO9660 {
 
         let rock_ridge_data = rock_ridge::parse(&extension_data);
 
-        if let Some(rr_data) = rock_ridge_data {
-            for i in rr_data {
-                if let rock_ridge::Entity::Name { name } = i {
-                    return Some(name.to_owned());
-                }
+        for i in rock_ridge_data {
+            if let rock_ridge::Entity::Name { name } = i {
+                return Some(name.to_owned());
             }
-
-            None
-        } else {
-            None
         }
+
+        None
     }
 
     pub fn read_directory(&mut self, start_lba: usize) -> DirectoryIter<'_> {
