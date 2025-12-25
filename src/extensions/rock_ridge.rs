@@ -34,7 +34,8 @@ impl<'data> Iterator for RockRidgeParser<'data> {
         if self.index + 2 < self.data.len() {
             let identifier = &self.data[self.index..=self.index + 1];
             let length = self.data[self.index + 2] as usize;
-            // println!("ID: {} (Size is: {})", identifier, length);
+
+            // println!("ID: {:x?}; Len: {}", identifier, length);
 
             match identifier {
                 b"SP" => {

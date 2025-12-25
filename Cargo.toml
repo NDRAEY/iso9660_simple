@@ -14,3 +14,5 @@ default = ["std"]
 std = []
 
 [dependencies]
+bitflags = "2.10.0"
+ucs2 = "0.3.3"

@@ -1,8 +1,10 @@
-use core::cell::RefCell;
-use alloc::vec;
 use alloc::borrow::ToOwned;
+use alloc::vec;
+use core::{cell::RefCell, mem};
 
-use crate::{ISODirectoryEntry, ISODirectoryRecord, ISO9660};
+use crate::{
+    ISO9660, ISODirectoryEntry, ISODirectoryRecord, ISOInternalFlags, PRIMARY_VOLUME_DESCRIPTOR_POSITION, Read, descriptors::{Descriptor, DescriptorType}
+};
 
 pub struct DirectoryIter<'iso> {
     iso: RefCell<&'iso mut ISO9660>,
@@ -12,8 +14,8 @@ pub struct DirectoryIter<'iso> {
 impl<'iso> DirectoryIter<'iso> {
     pub fn new(iso: &'iso mut ISO9660, byte_offset: usize) -> Self {
         Self {
-            iso: RefCell::new(iso),
-            byte_offset: RefCell::new(byte_offset),
+            iso: iso.into(),
+            byte_offset: byte_offset.into(),
         }
     }
 }
@@ -39,42 +41,87 @@ impl Iterator for &DirectoryIter<'_> {
             return None;
         }
 
-        let main_part_size =
-            size_of::<ISODirectoryRecord>() + record.file_identifier_length as usize;
-        let extension_size = record.length as usize - main_part_size;
+        let main_part_size = size_of::<ISODirectoryRecord>();
 
-        let rr_name = ISO9660::read_rock_ridge_name(
-            &mut self.iso.borrow_mut(),
-            *self.byte_offset.borrow(),
-            main_part_size,
-            extension_size,
-        );
+        let name: String;
 
-        let name = if let Some(n) = rr_name {
-            n
+        if self.iso.borrow().flags.contains(ISOInternalFlags::HasJoliet) {
+            name = self.iso.borrow_mut().read_joliet_name(
+                *self.byte_offset.borrow() + main_part_size,
+                record.file_identifier_length as _
+            ).expect("Expected a valid UCS-2 name");
         } else {
-            let size = record.file_identifier_length as usize;
+            let main_part_size = main_part_size + record.file_identifier_length as usize;
+            let extension_size = record.length as usize - main_part_size;
 
-            let mut result = vec![0; size];
+            // println!("Ext size: {}", extension_size);
 
-            self.iso.borrow_mut().device.read(
-                *self.byte_offset.borrow() + size_of::<ISODirectoryRecord>(),
-                &mut result,
+            let rr_name = self.iso.borrow_mut().read_rock_ridge_name(
+                *self.byte_offset.borrow(),
+                main_part_size,
+                extension_size,
             );
 
-            let final_name = if result[0] == 0 {
-                "."
-            } else if result[0] == 1 {
-                ".."
+            name = if let Some(n) = rr_name {
+                n
             } else {
-                str::from_utf8(&result).unwrap()
-            };
+                let size = record.file_identifier_length as usize;
 
-            final_name.to_owned()
-        };
+                let mut result = vec![0; size];
+
+                self.iso.borrow_mut().device.read(
+                    *self.byte_offset.borrow() + size_of::<ISODirectoryRecord>(),
+                    &mut result,
+                );
+
+                let final_name = if result[0] == 0 {
+                    "."
+                } else if result[0] == 1 {
+                    ".."
+                } else {
+                    str::from_utf8(&result).unwrap()
+                };
+
+                final_name.to_owned()
+            };
+        }
 
         *self.byte_offset.borrow_mut() += record.length as usize;
 
         Some(ISODirectoryEntry { record, name })
+    }
+}
+
+pub struct DescriptorIterator<'dev> {
+    device: &'dev mut dyn Read,
+    position: usize,
+}
+
+impl<'a> DescriptorIterator<'a> {
+    pub fn new(dev: &'a mut dyn Read) -> Self {
+        Self {
+            device: dev,
+            position: PRIMARY_VOLUME_DESCRIPTOR_POSITION,
+        }
+    }
+}
+
+impl<'a> Iterator for DescriptorIterator<'a> {
+    type Item = Descriptor;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut buffer = [0u8; 2048];
+
+        self.device.read(self.position, &mut buffer)?;
+
+        let descriptor: Self::Item = unsafe { mem::transmute(buffer) };
+
+        if descriptor.desc_type == DescriptorType::Terminator {
+            None
+        } else {
+            self.position += core::mem::size_of::<Descriptor>();
+
+            Some(descriptor)
+        }
     }
 }
