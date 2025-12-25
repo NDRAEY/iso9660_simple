@@ -12,7 +12,6 @@ use alloc::vec;
 const DISK_SECTOR_SIZE: usize = 2048;
 
 const PRIMARY_VOLUME_DESCRIPTOR_POSITION: usize = 0x8000;
-const SUPPLEMENTARY_VOLUME_DESCRIPTOR_POSITION: usize = 0x8800;
 
 //const FLAG_HIDDEN: u8 = 1 << 0;
 const FLAG_DIRECTORY: u8 = 1 << 1;
@@ -20,8 +19,6 @@ const FLAG_DIRECTORY: u8 = 1 << 1;
 //const FLAG_EXTENDED_ATTR: u8 = 1 << 3;
 
 extern crate alloc;
-
-use core::mem::{MaybeUninit, size_of};
 
 use alloc::{
     borrow::ToOwned,
