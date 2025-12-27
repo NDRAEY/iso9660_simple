@@ -1,3 +1,7 @@
+use alloc::borrow::ToOwned;
+use alloc::vec;
+use alloc::string::String;
+
 pub(crate) fn parse_name(ucs2_name: &[u8]) -> Option<String> {
     if ucs2_name.len() == 1 {
         if ucs2_name[0] == 0 {

@@ -117,8 +117,6 @@ impl ISO9660 {
             main_descriptor = svd.try_as_svd()?;
 
             flags |= ISOInternalFlags::HasJoliet;
-
-            println!("USING SVD!");
         }
 
         let root_dir: ISODirectoryRecord = unsafe {
