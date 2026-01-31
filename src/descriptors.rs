@@ -1,5 +1,7 @@
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, TryFromBytes};
+
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Immutable, TryFromBytes)]
 pub enum DescriptorType {
     BootRecord = 0x00,
     PrimaryVolume = 0x01,
@@ -9,6 +11,7 @@ pub enum DescriptorType {
 }
 
 #[repr(packed(1))]
+#[derive(Immutable, TryFromBytes)]
 pub struct Descriptor {
     pub desc_type: DescriptorType,
     pub id: [u8; 5],
@@ -19,22 +22,22 @@ pub struct Descriptor {
 impl Descriptor {
     pub fn try_as_pvd(&self) -> Option<&PrimarySupplementaryVolumeDescriptor> {
         if self.desc_type == DescriptorType::PrimaryVolume {
-            unsafe { (self.data.as_ptr() as *const PrimarySupplementaryVolumeDescriptor).as_ref() }
+            Some(PrimarySupplementaryVolumeDescriptor::ref_from_bytes(&self.data).unwrap())
         } else {
             None
         }
     }
-    
+
     pub fn try_as_svd(&self) -> Option<&PrimarySupplementaryVolumeDescriptor> {
         if self.desc_type == DescriptorType::SupplementaryVolume {
-            unsafe { (self.data.as_ptr() as *const PrimarySupplementaryVolumeDescriptor).as_ref() }
+            Some(PrimarySupplementaryVolumeDescriptor::ref_from_bytes(&self.data).unwrap())
         } else {
             None
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromBytes, Immutable, IntoBytes, KnownLayout)]
 #[repr(C, packed(1))]
 pub struct PrimarySupplementaryVolumeDescriptor {
     pub unused00: u8,
@@ -72,11 +75,11 @@ pub struct PrimarySupplementaryVolumeDescriptor {
 impl PrimarySupplementaryVolumeDescriptor {
     /// Helper function that exposes ISO header as an array of bytes
     pub fn as_slice(&mut self) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
+        self.as_bytes()
     }
 
     /// Helper function that exposes ISO header as a mutable array of bytes
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe { core::slice::from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
+        self.as_mut_bytes()
     }
 }

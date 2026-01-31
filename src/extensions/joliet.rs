@@ -1,6 +1,7 @@
 use alloc::borrow::ToOwned;
 use alloc::vec;
 use alloc::string::String;
+use zerocopy::FromBytes;
 
 pub(crate) fn parse_name(ucs2_name: &[u8]) -> Option<String> {
     if ucs2_name.len() == 1 {
@@ -15,7 +16,7 @@ pub(crate) fn parse_name(ucs2_name: &[u8]) -> Option<String> {
 
     let mut utf8_str_buf = vec![0u8; ucs2_name.len()];
 
-    let utf16_buf: &[u16] = unsafe { core::slice::from_raw_parts(ucs2_name.as_ptr() as *const u16, ucs2_name.len() / 2) };
+    let utf16_buf: &[u16] = FromBytes::ref_from_bytes(ucs2_name).unwrap();
 
     ucs2::decode(utf16_buf, &mut utf8_str_buf).ok()?;
 

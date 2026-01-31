@@ -16,3 +16,4 @@ std = []
 [dependencies]
 bitflags = "2.10.0"
 ucs2 = "0.3.3"
+zerocopy = { version = "0.8.37", features = ["derive"] }
