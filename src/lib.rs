@@ -205,14 +205,6 @@ impl ISO9660 {
         Some(())
     }
 
-    // pub fn read_primary_vol_descriptor(&mut self) -> ISOHeader {
-    //     let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
-
-    //     self.device.read(PRIMARY_VOLUME_DESCRIPTOR_POSITION, raw_header.as_mut_slice());
-
-    //     ISOHeader::from_raw_header(raw_header)
-    // }
-
     #[inline]
     pub fn read_root(&mut self) -> DirectoryIter<'_> {
         self.read_directory(self.root_directory.lba.lsb as usize)
