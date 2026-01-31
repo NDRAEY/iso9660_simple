@@ -83,11 +83,11 @@ impl ISODirectoryEntry {
     }
 
     pub fn lsb_position(&self) -> u32 {
-        self.record.lba.lsb
+        self.record.lba.get()
     }
 
     pub fn file_size(&self) -> u32 {
-        self.record.data_length.lsb
+        self.record.data_length.get()
     }
 }
 
@@ -205,7 +205,7 @@ impl ISO9660 {
 
     #[inline]
     pub fn read_root(&mut self) -> DirectoryIter<'_> {
-        self.read_directory(self.root_directory.lba.lsb as usize)
+        self.read_directory(self.root_directory.lba.get() as usize)
     }
 
     #[inline]

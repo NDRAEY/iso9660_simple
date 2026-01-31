@@ -51,7 +51,7 @@ let mut iso = ISO9660::from_device(device);
 And now, you can do parse an ISO9660 file:
 
 ```rust
-let root_directory_lba = iso.root().lba.lsb;
+let root_directory_lba = iso.root().lba.get();
 let data = iso.read_directory(root_directory_lba);  // Read root directory
 
 let first_file = data.first().unwrap();  // Get first file info
