@@ -29,7 +29,7 @@ pub fn get_directory_entry_by_path(iso: &mut ISO9660, path: &str) -> Option<ISOD
                     return None;
                 }
 
-                entry = iso.read_directory(i.record.lba.lsb as usize);
+                entry = iso.read_directory(i.record.lba.get() as usize);
 
                 found = true;
 

@@ -119,7 +119,7 @@ impl<'data> Iterator for RockRidgeParser<'data> {
                     self.index += length;
 
                     return Some(Entity::Name {
-                        name: unsafe { str::from_utf8_unchecked(name) },
+                        name: str::from_utf8(name).unwrap(),
                     });
                 }
                 &_ => {

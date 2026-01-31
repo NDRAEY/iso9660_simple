@@ -1,7 +1,8 @@
 use alloc::borrow::ToOwned;
 use alloc::string::String;
 use alloc::vec;
-use core::{cell::RefCell, mem};
+use core::cell::RefCell;
+use zerocopy::IntoBytes;
 
 use crate::{
     ISO9660, ISODirectoryEntry, ISODirectoryRecord, ISOInternalFlags, PRIMARY_VOLUME_DESCRIPTOR_POSITION, Read, descriptors::{Descriptor, DescriptorType}
@@ -26,12 +27,7 @@ impl Iterator for &DirectoryIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut record = ISODirectoryRecord::default();
-        let ptr = unsafe {
-            core::slice::from_raw_parts_mut(
-                &mut record as *mut ISODirectoryRecord as *mut u8,
-                size_of::<ISODirectoryRecord>(),
-            )
-        };
+        let ptr = record.as_mut_bytes();
 
         self.iso
             .borrow_mut()
@@ -115,14 +111,19 @@ impl<'a> Iterator for DescriptorIterator<'a> {
 
         self.device.read(self.position, &mut buffer)?;
 
-        let descriptor: Self::Item = unsafe { mem::transmute(buffer) };
+        loop {
+            let Ok(descriptor): Result<Self::Item, _> = zerocopy::try_transmute!(buffer) else {
+                // invalid type, skip to next descriptor immediately
+                self.position += core::mem::size_of::<Descriptor>();
+                continue;
+            };
 
-        if descriptor.desc_type == DescriptorType::Terminator {
-            None
-        } else {
-            self.position += core::mem::size_of::<Descriptor>();
-
-            Some(descriptor)
+            break if descriptor.desc_type == DescriptorType::Terminator {
+                None
+            } else {
+                self.position += core::mem::size_of::<Descriptor>();
+                Some(descriptor)
+            };
         }
     }
 }

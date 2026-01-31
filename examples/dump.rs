@@ -45,16 +45,16 @@ fn main() {
         let data = reader.read_directory(lba as _);
 
         for i in data.collect::<Vec<_>>() {
-            let size = i.record.data_length.lsb;
+            let size = i.record.data_length.get();
 
             println!("{:<offset$}[{}] {} - {} bytes", "", if i.is_file() { "FILE" } else { "DIR" }, i.name, size, offset = level * 4);
 
             if ![".", ".."].contains(&i.name.as_str()) && i.is_folder() {
-                dump(reader, i.record.lba.lsb, level + 1);
+                dump(reader, i.record.lba.get(), level + 1);
             }
         }
     }
 
-    let root_lba = iso.root().lba.lsb;
+    let root_lba = iso.root().lba.get();
     dump(&mut iso, root_lba, 0);
 }

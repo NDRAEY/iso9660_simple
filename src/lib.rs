@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unsafe_code)]
 
 pub mod descriptors;
 pub mod helpers;
@@ -37,7 +38,7 @@ bitflags! {
 
 /// Represents date and time packed into every DirectoryEntry
 #[repr(C, packed(1))]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, FromBytes, Immutable, IntoBytes)]
 pub struct ISODateTime {
     pub year: u8,
     pub month: u8,
@@ -50,7 +51,7 @@ pub struct ISODateTime {
 
 /// Represents a raw directory record (name is not counted in)
 #[repr(C, packed(1))]
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, FromBytes, Immutable, IntoBytes)]
 pub struct ISODirectoryRecord {
     pub(crate) length: u8,
     pub(crate) xar_length: u8,
@@ -82,16 +83,17 @@ impl ISODirectoryEntry {
     }
 
     pub fn lsb_position(&self) -> u32 {
-        self.record.lba.lsb
+        self.record.lba.get()
     }
 
     pub fn file_size(&self) -> u32 {
-        self.record.data_length.lsb
+        self.record.data_length.get()
     }
 }
 
 pub mod io;
 pub use io::Read;
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 use crate::{descriptors::DescriptorType, iter::{DescriptorIterator, DirectoryIter}};
 
@@ -105,7 +107,6 @@ pub struct ISO9660 {
 
 impl ISO9660 {
     pub fn from_device(mut device: impl Read + 'static) -> Option<ISO9660> {
-        let idr_size = core::mem::size_of::<ISODirectoryRecord>();
         let mut flags = ISOInternalFlags::empty();
 
         let pvd_desc = DescriptorIterator::new(&mut device).find(|x| x.desc_type == DescriptorType::PrimaryVolume)?;
@@ -119,10 +120,7 @@ impl ISO9660 {
             flags |= ISOInternalFlags::HasJoliet;
         }
 
-        let root_dir: ISODirectoryRecord = unsafe {
-            (main_descriptor.directory_entry[..idr_size].as_ptr() as *const ISODirectoryRecord)
-                .read_unaligned()
-        };
+        let root_dir = ISODirectoryRecord::read_from_prefix(&main_descriptor.directory_entry).ok()?.0;
 
         Some(ISO9660 {
             root_directory: root_dir,
@@ -205,17 +203,9 @@ impl ISO9660 {
         Some(())
     }
 
-    // pub fn read_primary_vol_descriptor(&mut self) -> ISOHeader {
-    //     let mut raw_header = unsafe { core::mem::zeroed::<ISOHeaderRaw>() };
-
-    //     self.device.read(PRIMARY_VOLUME_DESCRIPTOR_POSITION, raw_header.as_mut_slice());
-
-    //     ISOHeader::from_raw_header(raw_header)
-    // }
-
     #[inline]
     pub fn read_root(&mut self) -> DirectoryIter<'_> {
-        self.read_directory(self.root_directory.lba.lsb as usize)
+        self.read_directory(self.root_directory.lba.get() as usize)
     }
 
     #[inline]
