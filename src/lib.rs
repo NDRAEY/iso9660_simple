@@ -28,6 +28,8 @@ use alloc::{
     vec::Vec,
 };
 
+use core::marker::{Send, Sync};
+
 use bitflags::bitflags;
 
 bitflags! {
@@ -102,11 +104,11 @@ use crate::{descriptors::DescriptorType, iter::{DescriptorIterator, DirectoryIte
 pub struct ISO9660 {
     root_directory: ISODirectoryRecord,
     flags: ISOInternalFlags,
-    device: Box<dyn Read>,
+    device: Box<dyn Read + Send + Sync>,
 }
 
 impl ISO9660 {
-    pub fn from_device(mut device: impl Read + 'static) -> Option<ISO9660> {
+    pub fn from_device(mut device: impl Read + Send + Sync + 'static) -> Option<ISO9660> {
         let mut flags = ISOInternalFlags::empty();
 
         let pvd_desc = DescriptorIterator::new(&mut device).find(|x| x.desc_type == DescriptorType::PrimaryVolume)?;
