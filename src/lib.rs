@@ -2,10 +2,10 @@
 #![deny(unsafe_code)]
 
 pub mod descriptors;
-pub mod helpers;
 pub mod extensions;
-pub mod types;
+pub mod helpers;
 pub mod iter;
+pub mod types;
 
 use alloc::vec;
 
@@ -21,12 +21,7 @@ const FLAG_DIRECTORY: u8 = 1 << 1;
 
 extern crate alloc;
 
-use alloc::{
-    borrow::ToOwned,
-    boxed::Box,
-    string::String,
-    vec::Vec,
-};
+use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 
 use core::marker::{Send, Sync};
 
@@ -97,7 +92,10 @@ pub mod io;
 pub use io::Read;
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
-use crate::{descriptors::DescriptorType, iter::{DescriptorIterator, DirectoryIter}};
+use crate::{
+    descriptors::DescriptorType,
+    iter::{DescriptorIterator, DirectoryIter},
+};
 
 /// Main structure of the crate.
 /// Used to read and parse data from the `device`
@@ -111,10 +109,12 @@ impl ISO9660 {
     pub fn from_device(mut device: impl Read + Send + Sync + 'static) -> Option<ISO9660> {
         let mut flags = ISOInternalFlags::empty();
 
-        let pvd_desc = DescriptorIterator::new(&mut device).find(|x| x.desc_type == DescriptorType::PrimaryVolume)?;
+        let pvd_desc = DescriptorIterator::new(&mut device)
+            .find(|x| x.desc_type == DescriptorType::PrimaryVolume)?;
         let mut main_descriptor = pvd_desc.try_as_pvd()?;
 
-        let svd: Option<descriptors::Descriptor> = DescriptorIterator::new(&mut device).find(|x| x.desc_type == DescriptorType::SupplementaryVolume);
+        let svd: Option<descriptors::Descriptor> = DescriptorIterator::new(&mut device)
+            .find(|x| x.desc_type == DescriptorType::SupplementaryVolume);
 
         if let Some(ref svd) = svd {
             main_descriptor = svd.try_as_svd()?;
@@ -122,7 +122,9 @@ impl ISO9660 {
             flags |= ISOInternalFlags::HasJoliet;
         }
 
-        let root_dir = ISODirectoryRecord::read_from_prefix(&main_descriptor.directory_entry).ok()?.0;
+        let root_dir = ISODirectoryRecord::read_from_prefix(&main_descriptor.directory_entry)
+            .ok()?
+            .0;
 
         Some(ISO9660 {
             root_directory: root_dir,
@@ -160,11 +162,7 @@ impl ISO9660 {
         None
     }
 
-    fn read_joliet_name(
-        &mut self,
-        byte_offset: usize,
-        len: usize,
-    ) -> Option<String> {
+    fn read_joliet_name(&mut self, byte_offset: usize, len: usize) -> Option<String> {
         let mut address = byte_offset;
         if (address % 2 != 0) && len != 1 {
             address += 1;
@@ -187,7 +185,7 @@ impl ISO9660 {
         directory_entry: &ISODirectoryEntry,
         offset: usize,
         data: &mut [u8],
-    ) -> Option<()> {
+    ) -> Option<usize> {
         if (directory_entry.record.flags & FLAG_DIRECTORY) != 0 {
             return None;
         }
@@ -195,14 +193,14 @@ impl ISO9660 {
         let position = directory_entry.lsb_position() as usize;
         let data_length = directory_entry.file_size() as usize;
 
-        if offset + data.len() > data_length {
-            return None;
-        }
+        let read_length = data_length.min(data.len());
 
-        self.device
-            .read((position * DISK_SECTOR_SIZE) + offset, data);
+        self.device.read(
+            (position * DISK_SECTOR_SIZE) + offset,
+            &mut data[0..read_length],
+        );
 
-        Some(())
+        Some(read_length)
     }
 
     #[inline]
