@@ -111,19 +111,16 @@ impl<'a> Iterator for DescriptorIterator<'a> {
 
         self.device.read(self.position, &mut buffer)?;
 
-        loop {
-            let Ok(descriptor): Result<Self::Item, _> = zerocopy::try_transmute!(buffer) else {
-                // invalid type, skip to next descriptor immediately
-                self.position += core::mem::size_of::<Descriptor>();
-                continue;
-            };
+        let Ok(descriptor): Result<Self::Item, _> = zerocopy::try_transmute!(buffer) else {
+            self.position += core::mem::size_of::<Descriptor>();
+            return None;
+        };
 
-            break if descriptor.desc_type == DescriptorType::Terminator {
-                None
-            } else {
-                self.position += core::mem::size_of::<Descriptor>();
-                Some(descriptor)
-            };
+        if descriptor.desc_type == DescriptorType::Terminator {
+            None
+        } else {
+            self.position += core::mem::size_of::<Descriptor>();
+            Some(descriptor)
         }
     }
 }
