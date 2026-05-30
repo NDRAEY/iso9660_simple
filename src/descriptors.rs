@@ -12,16 +12,22 @@ pub enum DescriptorType {
 
 #[repr(packed(1))]
 #[derive(Immutable, TryFromBytes)]
-pub struct Descriptor {
+pub struct DescriptorHeader {
     pub desc_type: DescriptorType,
     pub id: [u8; 5],
     pub version: u8,
+}
+
+#[repr(packed(1))]
+#[derive(Immutable, TryFromBytes)]
+pub struct Descriptor {
+    pub header: DescriptorHeader,
     pub data: [u8; 2041],
 }
 
 impl Descriptor {
     pub fn try_as_pvd(&self) -> Option<&PrimarySupplementaryVolumeDescriptor> {
-        if self.desc_type == DescriptorType::PrimaryVolume {
+        if self.header.desc_type == DescriptorType::PrimaryVolume {
             Some(PrimarySupplementaryVolumeDescriptor::ref_from_bytes(&self.data).unwrap())
         } else {
             None
@@ -29,7 +35,7 @@ impl Descriptor {
     }
 
     pub fn try_as_svd(&self) -> Option<&PrimarySupplementaryVolumeDescriptor> {
-        if self.desc_type == DescriptorType::SupplementaryVolume {
+        if self.header.desc_type == DescriptorType::SupplementaryVolume {
             Some(PrimarySupplementaryVolumeDescriptor::ref_from_bytes(&self.data).unwrap())
         } else {
             None

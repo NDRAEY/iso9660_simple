@@ -42,6 +42,6 @@ fn main() {
     };
 
     for (n, i) in iso.descriptors().enumerate() {
-        println!("Descriptor #{n:02x}; Type: {:?}; ", i.desc_type);
+        println!("Descriptor #{n:02x}; Type: {:?}; ", i.header.desc_type);
     }
 }

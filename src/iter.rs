@@ -112,11 +112,14 @@ impl<'a> Iterator for DescriptorIterator<'a> {
         self.device.read(self.position, &mut buffer)?;
 
         let Ok(descriptor): Result<Self::Item, _> = zerocopy::try_transmute!(buffer) else {
-            self.position += core::mem::size_of::<Descriptor>();
             return None;
         };
 
-        if descriptor.desc_type == DescriptorType::Terminator {
+        if &descriptor.header.id != b"CD001" {
+            return None;
+        }
+
+        if descriptor.header.desc_type == DescriptorType::Terminator {
             None
         } else {
             self.position += core::mem::size_of::<Descriptor>();

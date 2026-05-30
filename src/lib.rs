@@ -110,11 +110,11 @@ impl ISO9660 {
         let mut flags = ISOInternalFlags::empty();
 
         let pvd_desc = DescriptorIterator::new(&mut device)
-            .find(|x| x.desc_type == DescriptorType::PrimaryVolume)?;
+            .find(|x| x.header.desc_type == DescriptorType::PrimaryVolume)?;
         let mut main_descriptor = pvd_desc.try_as_pvd()?;
 
         let svd: Option<descriptors::Descriptor> = DescriptorIterator::new(&mut device)
-            .find(|x| x.desc_type == DescriptorType::SupplementaryVolume);
+            .find(|x| x.header.desc_type == DescriptorType::SupplementaryVolume);
 
         if let Some(ref svd) = svd {
             main_descriptor = svd.try_as_svd()?;
