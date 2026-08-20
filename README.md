@@ -1,6 +1,8 @@
 # ISO9660 Simple
 
-It's a Rust crate that provides minimal ISO9660 images reading and parsing functionality.
+It's a Rust crate that provides minimal ISO9660 reading and parsing functionality.
+
+It's useful in bare-metal systems like operating system kernels or media player firmwares.
 
 # To Do
 
